@@ -13,6 +13,7 @@ The core of the project is a trained Isolation Forest model that flags anomalous
 - A WebSocket-based engine simulator that replays NASA C-MAPSS data in real time with configurable fault injection
 - A SQLite audit log that records every prediction made
 - A browser dashboard for live monitoring, what-if analysis, drift visualization, and side-by-side engine comparison
+![Dashboard](screenshots/dashboard.png)
 
 ---
 
