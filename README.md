@@ -1,3 +1,8 @@
+![Dashboard](dashboard.png)
+ 
+ 
+ 
+ 
  ML Pipeline Deployment
 
 A production-style REST API for serving a machine learning model, built around turbofan engine anomaly detection using real NASA sensor data. The goal was to go beyond just training a model — this project covers the full deployment lifecycle: serving predictions, explaining them, monitoring for data drift, simulating live sensor streams, and visualizing everything in a real-time dashboard.
@@ -13,7 +18,6 @@ The core of the project is a trained Isolation Forest model that flags anomalous
 - A WebSocket-based engine simulator that replays NASA C-MAPSS data in real time with configurable fault injection
 - A SQLite audit log that records every prediction made
 - A browser dashboard for live monitoring, what-if analysis, drift visualization, and side-by-side engine comparison
-![Dashboard](screenshots/dashboard.png)
 
 ---
 
