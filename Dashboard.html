@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TALON · ML Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:      #0f0f10;
+  --bg2:     #161618;
+  --bg3:     #1c1c1f;
+  --bg4:     #222226;
+  --border:  #2a2a2e;
+  --border2: #333338;
+  --blue:    #3b82f6;
+  --blue2:   #2563eb;
+  --blue-dim:#1e3a5f;
+  --text:    #f1f1f2;
+  --text2:   #8b8b97;
+  --text3:   #3a3a42;
+  --red:     #f43f5e;
+  --green:   #22c55e;
+  --amber:   #f59e0b;
+  --radius:  8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;overflow:hidden;}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-rows:52px 1fr;height:100vh;}
+.main{display:grid;grid-template-columns:240px 1fr 280px;overflow:hidden;}
+
+/* ── HEADER ── */
+.header{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:24px;}
+.brand{font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.01em;}
+.brand span{color:var(--blue);}
+.nav-tabs{display:flex;gap:2px;margin-left:8px;}
+.tab{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;transition:.15s;}
+.tab:hover{color:var(--text);background:var(--bg3);}
+.tab.active{color:var(--text);background:var(--bg3);}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);}
+.badge-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
+.clock{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;padding:12px 0;}
+.sidebar-section{padding:0 12px;margin-bottom:20px;}
+.sidebar-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding:0 4px;}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;}
+.stat{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;}
+.stat-label{font-size:10px;color:var(--text2);margin-bottom:3px;}
+.stat-val{font-size:20px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.stat-val.blue{color:var(--blue);}
+.stat-val.red{color:var(--red);}
+.stat-val.green{color:var(--green);}
+.stat-val.amber{color:var(--amber);}
+
+/* ── HEALTH RING ── */
+.ring-wrap{display:flex;justify-content:center;padding:8px 0 12px;}
+.ring-container{position:relative;width:100px;height:100px;}
+.ring-svg{transform:rotate(-90deg);}
+.ring-track{fill:none;stroke:var(--bg4);stroke-width:6;}
+.ring-fill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .8s ease;}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-val{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}
+.ring-sub{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:1px;}
+
+/* ── CONTROLS ── */
+.ctrl{margin-bottom:8px;}
+.ctrl-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:block;}
+select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:11px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b8b97'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;}
+select:focus{border-color:var(--blue);}
+.range-row{display:flex;align-items:center;gap:8px;}
+input[type=range]{flex:1;-webkit-appearance:none;height:2px;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--blue);cursor:pointer;}
+.range-val{font-size:11px;color:var(--blue);min-width:28px;text-align:right;font-variant-numeric:tabular-nums;}
+.btn{width:100%;padding:8px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid;transition:.15s;letter-spacing:-.01em;}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue2);border-color:var(--blue2);}
+.btn-ghost{background:transparent;border-color:var(--border2);color:var(--text2);margin-top:5px;}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* ── PROGRESS ── */
+.prog-wrap{background:var(--bg4);border-radius:2px;height:3px;overflow:hidden;margin-top:8px;}
+.prog-bar{height:100%;background:var(--blue);border-radius:2px;transition:width .4s;}
+.prog-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:4px;font-variant-numeric:tabular-nums;}
+.eng-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.chip{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);}
+.chip.alert{background:rgba(244,63,94,.08);border-color:rgba(244,63,94,.3);color:var(--red);}
+
+/* ── DRIVER BARS ── */
+.driver-row{display:flex;align-items:center;gap:8px;padding:3px 0;}
+.driver-name{font-size:11px;color:var(--text2);min-width:24px;}
+.driver-bar-wrap{flex:1;height:6px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.driver-bar{height:100%;background:var(--blue);border-radius:2px;transition:width .4s;}
+.driver-count{font-size:10px;color:var(--text2);min-width:18px;text-align:right;font-variant-numeric:tabular-nums;}
+
+/* ── CENTER ── */
+.center{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.charts{flex:1;padding:12px;display:grid;grid-template-rows:1fr 1fr;gap:10px;overflow:hidden;}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;overflow:hidden;}
+.chart-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.chart-title{font-size:11px;font-weight:500;color:var(--text2);}
+.chart-pill{font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);}
+.chart-pill.active{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:var(--blue);}
+.chart-pill.alert{background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.3);color:var(--red);}
+.chart-wrap{flex:1;position:relative;min-height:0;}
+
+/* ── FEED ── */
+.feed{height:140px;border-top:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;}
+.feed-header{padding:8px 14px 4px;display:flex;align-items:center;gap:8px;}
+.feed-title{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);}
+.feed-count{margin-left:auto;font-size:10px;color:var(--text3);font-variant-numeric:tabular-nums;}
+.feed-scroll{flex:1;overflow-y:auto;padding:0 14px 6px;}
+.feed-row{display:grid;grid-template-columns:64px 56px 72px 1fr 60px;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px;font-variant-numeric:tabular-nums;}
+.feed-row:last-child{border-bottom:none;}
+.pill{font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;text-align:center;letter-spacing:.04em;}
+.pill-anom{background:rgba(244,63,94,.1);color:var(--red);border:1px solid rgba(244,63,94,.25);}
+.pill-norm{background:rgba(34,197,94,.08);color:var(--green);border:1px solid rgba(34,197,94,.18);}
+.feed-score{color:var(--text2);}
+.feed-driver{color:var(--amber);font-size:10px;}
+
+/* ── RIGHT PANEL ── */
+.right-panel{background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.right-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 12px;gap:2px;}
+.rtab{padding:10px 10px 9px;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;white-space:nowrap;}
+.rtab:hover{color:var(--text);}
+.rtab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.rpanel{display:none;flex:1;overflow-y:auto;padding:12px;}
+.rpanel.active{display:flex;flex-direction:column;gap:10px;}
+
+/* ── SHAP ── */
+.shap-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);}
+.shap-row:last-child{border-bottom:none;}
+.shap-row.top{background:rgba(244,63,94,.04);border-radius:5px;padding:4px 6px;margin:0 -6px;}
+.shap-name{font-size:11px;color:var(--text2);min-width:26px;font-weight:500;}
+.shap-name.top{color:var(--red);}
+.shap-bar-wrap{flex:1;height:8px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.shap-bar{height:100%;border-radius:2px;transition:width .3s;}
+.shap-bar.up{background:var(--red);}
+.shap-bar.down{background:var(--green);}
+.shap-val{font-size:10px;min-width:52px;text-align:right;font-variant-numeric:tabular-nums;}
+.shap-val.up{color:var(--red);}
+.shap-val.down{color:var(--green);}
+
+/* ── GAUGES ── */
+.gauge-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.gauge{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;}
+.gauge.alert{border-color:rgba(244,63,94,.3);}
+.gauge-name{font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin-bottom:4px;}
+.gauge-val{font-size:16px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-bottom:5px;}
+.gauge.alert .gauge-val{color:var(--red);}
+.gauge-bar-wrap{height:2px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.gauge-bar{height:100%;background:var(--blue);border-radius:2px;transition:width .3s;}
+.gauge.alert .gauge-bar{background:var(--red);}
+
+/* ── WHAT-IF ── */
+.whatif-section{margin-bottom:14px;}
+.whatif-title{font-size:11px;font-weight:500;color:var(--text);margin-bottom:8px;}
+.whatif-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.whatif-name{font-size:11px;color:var(--text2);min-width:26px;}
+.whatif-result{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;text-align:center;}
+.whatif-pred{font-size:20px;font-weight:600;margin-bottom:2px;}
+.whatif-score{font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;}
+
+/* ── DRIFT ── */
+.drift-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.drift-row:last-child{border-bottom:none;}
+.drift-name{font-size:11px;color:var(--text2);min-width:26px;font-weight:500;}
+.drift-bar-wrap{flex:1;height:6px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.drift-bar{height:100%;border-radius:2px;transition:width .4s;}
+.drift-bar.ok{background:var(--green);}
+.drift-bar.warn{background:var(--amber);}
+.drift-bar.bad{background:var(--red);}
+.drift-status{font-size:9px;font-weight:600;min-width:36px;text-align:right;}
+.drift-status.ok{color:var(--green);}
+.drift-status.warn{color:var(--amber);}
+.drift-status.bad{color:var(--red);}
+.drift-summary{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--text2);line-height:1.5;}
+
+/* ── COMPARE ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.compare-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px;}
+.compare-label{font-size:10px;color:var(--text2);margin-bottom:4px;}
+.compare-val{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;}
+.compare-wrap{flex:1;position:relative;min-height:120px;}
+
+/* ── SESSION SUMMARY ── */
+.sess-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.empty{color:var(--text3);font-size:11px;text-align:center;padding:24px 0;}
+.divider{height:1px;background:var(--border);margin:0 12px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="brand">TALON <span>·</span> ML</div>
+  <div class="nav-tabs">
+    <button class="tab active" onclick="switchTab('monitor')">Monitor</button>
+    <button class="tab" onclick="switchTab('whatif')">What-If</button>
+    <button class="tab" onclick="switchTab('drift')">Drift</button>
+    <button class="tab" onclick="switchTab('compare')">Compare</button>
+  </div>
+  <div class="header-right">
+    <div class="badge"><div class="badge-dot" id="live-dot"></div><span id="live-label">Offline</span></div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Overview</div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-label">Predictions</div><div class="stat-val blue" id="stat-total">—</div></div>
+      <div class="stat"><div class="stat-label">Anomaly Rate</div><div class="stat-val amber" id="stat-rate">—</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-label">Anomalies</div><div class="stat-val red" id="stat-anom">—</div></div>
+      <div class="stat"><div class="stat-label">Avg Latency</div><div class="stat-val green" id="stat-lat">—</div></div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Fleet Health</div>
+    <div class="ring-wrap">
+      <div class="ring-container">
+        <svg class="ring-svg" width="100" height="100" viewBox="0 0 100 100">
+          <circle class="ring-track" cx="50" cy="50" r="42"/>
+          <circle class="ring-fill" id="health-ring" cx="50" cy="50" r="42"
+            stroke="var(--green)" stroke-dasharray="264" stroke-dashoffset="264"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-val" id="health-val" style="color:var(--green)">—</div>
+          <div class="ring-sub">Health</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="sidebar-section" style="margin-top:16px;">
+    <div class="sidebar-label">Simulator</div>
+    <div class="ctrl">
+      <label class="ctrl-label">Dataset</label>
+      <select id="cfg-dataset">
+        <option value="FD001">FD001 — 100 engines</option>
+        <option value="FD002">FD002 — 260 engines</option>
+        <option value="FD003">FD003 — 100 engines</option>
+        <option value="FD004">FD004 — 249 engines</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label class="ctrl-label">Fault mode</label>
+      <select id="cfg-fault">
+        <option value="none">None</option>
+        <option value="bearing_wear">Bearing wear</option>
+        <option value="compressor_stall">Compressor stall</option>
+        <option value="fuel_system_degradation">Fuel degradation</option>
+        <option value="turbine_erosion">Turbine erosion</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label class="ctrl-label">Fault onset — <span id="fpv" style="color:var(--blue)">60%</span></label>
+      <input type="range" id="cfg-fp" min="10" max="90" value="60" step="5" oninput="fpv.textContent=this.value+'%'">
+    </div>
+    <div class="ctrl">
+      <label class="ctrl-label">Speed — <span id="spv" style="color:var(--blue)">5×</span></label>
+      <input type="range" id="cfg-sp" min="1" max="20" value="5" step="1" oninput="spv.textContent=this.value+'×'">
+    </div>
+    <button class="btn btn-primary" id="btn-start" onclick="startSim()">Start simulation</button>
+    <button class="btn btn-ghost" id="btn-stop" onclick="stopSim()" disabled>Stop</button>
+
+    <div id="eng-block" style="display:none;margin-top:10px;">
+      <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+      <div class="prog-labels"><span id="prog-cyc">Cycle 0</span><span id="prog-pct">0%</span></div>
+      <div class="eng-chips">
+        <div class="chip">Eng <span id="ei-id">—</span></div>
+        <div class="chip" id="ei-ds">—</div>
+        <div class="chip" id="ei-fault">Nominal</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="sidebar-section" style="margin-top:16px;flex:1;">
+    <div class="sidebar-label">Top Drivers</div>
+    <div id="drivers-list"><div class="empty">No data yet</div></div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div class="center">
+  <div class="charts">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Anomaly score</span>
+        <span class="chart-pill" id="score-pill">Idle</span>
+        <span class="chart-pill active" id="session-pill" style="margin-left:auto;display:none"></span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-score"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Sensor telemetry — s9 · s14 · s4 · s3 · s17</span>
+        <span class="chart-pill active" id="sens-pill" style="margin-left:auto;">Idle</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-sens"></canvas></div>
+    </div>
+  </div>
+  <div class="feed">
+    <div class="feed-header">
+      <span class="feed-title">Prediction feed</span>
+      <span class="feed-count" id="feed-count">0 events</span>
+    </div>
+    <div class="feed-scroll" id="feed-list"><div class="empty">Waiting for simulation...</div></div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="right-tabs">
+    <button class="rtab active" onclick="switchRTab('shap')">SHAP</button>
+    <button class="rtab" onclick="switchRTab('gauges')">Gauges</button>
+    <button class="rtab" onclick="switchRTab('session')">Session</button>
+  </div>
+
+  <!-- SHAP tab -->
+  <div class="rpanel active" id="rt-shap">
+    <div style="font-size:11px;color:var(--text2);">Last anomaly · sensor contributions</div>
+    <div id="shap-list"><div class="empty">No anomaly yet</div></div>
+  </div>
+
+  <!-- Gauges tab -->
+  <div class="rpanel" id="rt-gauges">
+    <div class="gauge-grid" id="gauge-grid">
+      <div class="gauge" id="g-s9"><div class="gauge-name">s9</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+      <div class="gauge" id="g-s14"><div class="gauge-name">s14</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+      <div class="gauge" id="g-s4"><div class="gauge-name">s4</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+      <div class="gauge" id="g-s3"><div class="gauge-name">s3</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+      <div class="gauge" id="g-s17"><div class="gauge-name">s17</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+      <div class="gauge" id="g-s7"><div class="gauge-name">s7</div><div class="gauge-val">—</div><div class="gauge-bar-wrap"><div class="gauge-bar" style="width:0%"></div></div></div>
+    </div>
+  </div>
+
+  <!-- Session tab -->
+  <div class="rpanel" id="rt-session">
+    <div class="sess-grid">
+      <div class="stat"><div class="stat-label">Cycles</div><div class="stat-val" id="s-cyc">0</div></div>
+      <div class="stat"><div class="stat-label">Anomalies</div><div class="stat-val red" id="s-anom">0</div></div>
+      <div class="stat"><div class="stat-label">Rate</div><div class="stat-val amber" id="s-rate">0%</div></div>
+      <div class="stat"><div class="stat-label">Fault</div><div class="stat-val" id="s-fault" style="font-size:12px;">—</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:500;color:var(--text);margin-top:4px;">Anomaly trend</div>
+    <div style="flex:1;position:relative;min-height:100px;"><canvas id="c-trend"></canvas></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- OVERLAY PANELS (What-If, Drift, Compare) -->
+<div id="overlay" style="display:none;position:fixed;inset:52px 0 0;background:var(--bg);z-index:10;overflow:hidden;display:none;">
+  <!-- What-If -->
+  <div id="ov-whatif" style="display:none;height:100%;overflow-y:auto;padding:20px;max-width:900px;margin:0 auto;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">What-If Analyzer</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:20px;">Drag sensor sliders to explore how individual readings affect the anomaly prediction.</div>
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;">
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:10px;">Sensor values</div>
+        <div id="wi-sliders"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:10px;">Prediction</div>
+        <div class="whatif-result">
+          <div class="whatif-pred" id="wi-pred">—</div>
+          <div class="whatif-score" id="wi-score">Score: —</div>
+        </div>
+        <div style="margin-top:12px;font-size:11px;font-weight:500;color:var(--text);margin-bottom:8px;">SHAP contributions</div>
+        <div id="wi-shap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drift -->
+  <div id="ov-drift" style="display:none;height:100%;overflow-y:auto;padding:20px;max-width:800px;margin:0 auto;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">Drift Detection</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">KS-test comparing live sensor readings to training distribution. Flags sensors operating outside the model's training domain.</div>
+    <button class="btn btn-primary" style="width:auto;padding:7px 16px;margin-bottom:16px;" onclick="runDrift()">Run drift check on last reading</button>
+    <div class="drift-summary" id="drift-summary">No drift check run yet.</div>
+    <div id="drift-list"><div class="empty">Run a drift check to see results.</div></div>
+  </div>
+
+  <!-- Compare -->
+  <div id="ov-compare" style="display:none;height:100%;overflow-y:auto;padding:20px;max-width:1000px;margin:0 auto;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">Engine Comparison</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">Run two engines simultaneously and compare anomaly score trajectories.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;font-weight:500;margin-bottom:8px;color:var(--text);">Engine A</div>
+        <div class="ctrl"><label class="ctrl-label">Dataset</label><select id="cmp-ds-a"><option value="FD001">FD001</option><option value="FD002">FD002</option><option value="FD003">FD003</option><option value="FD004">FD004</option></select></div>
+        <div class="ctrl"><label class="ctrl-label">Fault</label><select id="cmp-fault-a"><option value="none">None</option><option value="bearing_wear">Bearing wear</option><option value="compressor_stall">Compressor stall</option><option value="fuel_system_degradation">Fuel degradation</option><option value="turbine_erosion">Turbine erosion</option></select></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:500;margin-bottom:8px;color:var(--text);">Engine B</div>
+        <div class="ctrl"><label class="ctrl-label">Dataset</label><select id="cmp-ds-b"><option value="FD001">FD001</option><option value="FD002">FD002</option><option value="FD003">FD003</option><option value="FD004">FD004</option></select></div>
+        <div class="ctrl"><label class="ctrl-label">Fault</label><select id="cmp-fault-b"><option value="none">None</option><option value="bearing_wear">Bearing wear</option><option value="compressor_stall">Compressor stall</option><option value="fuel_system_degradation">Fuel degradation</option><option value="turbine_erosion">Turbine erosion</option></select></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:auto;padding:7px 16px;margin-bottom:16px;" onclick="startCompare()">Start comparison</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="compare-card"><div class="compare-label">Engine A anomalies</div><div class="compare-val blue" id="cmp-anom-a">—</div></div>
+      <div class="compare-card"><div class="compare-label">Engine B anomalies</div><div class="compare-val blue" id="cmp-anom-b">—</div></div>
+    </div>
+    <div class="chart-card" style="height:220px;">
+      <div class="chart-header"><span class="chart-title">Anomaly score — A vs B</span></div>
+      <div class="chart-wrap"><canvas id="c-compare"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8001';
+const WS  = 'ws://localhost:8001/ws/simulate';
+const MAX = 150;
+
+let ws=null, wsB=null;
+let scoreChart, sensChart, trendChart, cmpChart;
+let cycles=0, anomalies=0, feedCount=0;
+let topDrivers={};
+let lastFeatures=null;
+let lastReading=null;
+let sRanges={};
+['s9','s14','s4','s3','s17','s7'].forEach(s=>sRanges[s]={min:Infinity,max:-Infinity});
+let cmpA=[], cmpB=[], cmpAnomA=0, cmpAnomB=0;
+
+// Sensor defaults (approximate training data midpoints)
+const sensorDefaults = {s9:9000,s14:8140,s4:1382,s3:1583,s17:390,s7:554,s12:2388,s11:47,s2:642};
+const sensorOrder    = ['s9','s14','s4','s3','s17','s7','s12','s11','s2'];
+
+// ── Clock ────────────────────────────────────────────────────────
+setInterval(()=>document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8),1000);
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  event.target.classList.add('active');
+  const ov = document.getElementById('overlay');
+  if (t === 'monitor') {
+    ov.style.display = 'none';
+  } else {
+    ov.style.display = 'block';
+    ['whatif','drift','compare'].forEach(p=>{
+      document.getElementById('ov-'+p).style.display = p===t?'block':'none';
+    });
+    if (t==='whatif') initWhatIf();
+  }
+}
+
+function switchRTab(t) {
+  document.querySelectorAll('.rtab').forEach(el=>el.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.rpanel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('rt-'+t).classList.add('active');
+}
+
+// ── Charts ────────────────────────────────────────────────────────
+function mk(n,v=null){return Array(n).fill(v);}
+
+function initCharts() {
+  const base={responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{display:false},
+      y:{grid:{color:'rgba(255,255,255,0.03)',drawBorder:false},ticks:{color:'#3a3a42',font:{size:9}}}
+    }};
+
+  scoreChart = new Chart(document.getElementById('c-score').getContext('2d'),{
+    type:'line',
+    data:{labels:mk(MAX,''),datasets:[
+      {data:mk(MAX),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.06)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.4},
+      {data:mk(MAX),borderColor:'transparent',backgroundColor:'rgba(244,63,94,0.9)',pointRadius:4,pointStyle:'circle',showLine:false}
+    ]},
+    options:{...base}
+  });
+
+  const sc=['#3b82f6','#22c55e','#f59e0b','#a78bfa','#f43f5e'];
+  sensChart = new Chart(document.getElementById('c-sens').getContext('2d'),{
+    type:'line',
+    data:{labels:mk(MAX,''),datasets:['s9','s14','s4','s3','s17'].map((n,i)=>({
+      label:n,data:mk(MAX),borderColor:sc[i],borderWidth:1.2,pointRadius:0,tension:0.35
+    }))},
+    options:{...base,plugins:{legend:{display:true,labels:{color:'#8b8b97',font:{size:9},boxWidth:8,padding:6}}}}
+  });
+
+  trendChart = new Chart(document.getElementById('c-trend').getContext('2d'),{
+    type:'bar',
+    data:{labels:mk(20,''),datasets:[{data:mk(20,0),backgroundColor:'rgba(244,63,94,0.5)',borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a42',font:{size:9}}}}}
+  });
+
+  cmpChart = new Chart(document.getElementById('c-compare').getContext('2d'),{
+    type:'line',
+    data:{labels:[],datasets:[
+      {label:'Engine A',data:[],borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,tension:0.3},
+      {label:'Engine B',data:[],borderColor:'#f43f5e',borderWidth:1.5,pointRadius:0,tension:0.3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:true,labels:{color:'#8b8b97',font:{size:9},boxWidth:8,padding:6}}},
+      scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a42',font:{size:9}}}}}
+  });
+}
+
+function push(chart,di,val){
+  chart.data.datasets[di].data.push(val);
+  if(chart.data.datasets[di].data.length>MAX)chart.data.datasets[di].data.shift();
+  if(di===0){chart.data.labels.push('');if(chart.data.labels.length>MAX)chart.data.labels.shift();}
+}
+
+// ── Simulation ─────────────────────────────────────────────────────
+function startSim(){
+  if(ws)ws.close();
+  cycles=anomalies=feedCount=0; topDrivers={};
+  document.getElementById('feed-list').innerHTML='';
+  document.getElementById('shap-list').innerHTML='<div class="empty">No anomaly yet</div>';
+  document.getElementById('drivers-list').innerHTML='<div class="empty">No data yet</div>';
+  document.getElementById('s-cyc').textContent='0';
+  document.getElementById('s-anom').textContent='0';
+  document.getElementById('s-rate').textContent='0%';
+  scoreChart.data.datasets.forEach(d=>d.data=mk(MAX));
+  scoreChart.data.labels=mk(MAX,'');
+  sensChart.data.datasets.forEach(d=>d.data=mk(MAX));
+  sensChart.data.labels=mk(MAX,'');
+  trendChart.data.datasets[0].data=mk(20,0);
+  scoreChart.update('none'); sensChart.update('none'); trendChart.update('none');
+
+  ws = openWS({
+    dataset:document.getElementById('cfg-dataset').value,
+    fault_mode:document.getElementById('cfg-fault').value,
+    fault_start_pct:parseInt(document.getElementById('cfg-fp').value)/100,
+    speed_multiplier:parseInt(document.getElementById('cfg-sp').value),
+    engine_id:null
+  }, onMsg);
+
+  document.getElementById('btn-start').disabled=true;
+  document.getElementById('btn-stop').disabled=false;
+}
+
+function stopSim(){if(ws)ws.close();}
+
+function openWS(cfg, onMessage){
+  const w = new WebSocket(WS);
+  w.onopen=()=>{w.send(JSON.stringify(cfg));setLive(true);};
+  w.onmessage=e=>onMessage(JSON.parse(e.data));
+  w.onclose=()=>{setLive(false);document.getElementById('btn-start').disabled=false;document.getElementById('btn-stop').disabled=true;};
+  return w;
+}
+
+function onMsg(m){
+  if(m.type==='session_start') onStart(m);
+  else if(m.type==='reading')  onRead(m);
+  else if(m.type==='session_end') onEnd(m);
+}
+
+function onStart(m){
+  document.getElementById('eng-block').style.display='block';
+  document.getElementById('ei-id').textContent=m.engine_id;
+  document.getElementById('ei-ds').textContent=m.dataset;
+  const fc=document.getElementById('ei-fault');
+  fc.textContent=m.fault_mode==='none'?'Nominal':m.fault_mode.replace(/_/g,' ');
+  fc.className='chip'+(m.fault_mode!=='none'?' alert':'');
+  document.getElementById('s-fault').textContent=m.fault_mode==='none'?'None':m.fault_mode.replace(/_/g,' ');
+  document.getElementById('session-pill').style.display='inline-block';
+  document.getElementById('session-pill').textContent='Eng '+m.engine_id+' · '+m.dataset;
+}
+
+function onRead(m){
+  cycles++; if(m.prediction===-1)anomalies++;
+  lastFeatures=m.features; lastReading=m;
+
+  // Counters
+  document.getElementById('s-cyc').textContent=cycles;
+  document.getElementById('s-anom').textContent=anomalies;
+  document.getElementById('s-rate').textContent=(cycles>0?(anomalies/cycles*100).toFixed(1):0)+'%';
+
+  // Progress
+  document.getElementById('prog-bar').style.width=m.cycle_pct+'%';
+  document.getElementById('prog-cyc').textContent='Cycle '+m.cycle;
+  document.getElementById('prog-pct').textContent=m.cycle_pct+'%';
+
+  // Score chart
+  push(scoreChart,0,m.anomaly_score);
+  push(scoreChart,1,m.prediction===-1?m.anomaly_score:null);
+  scoreChart.update('none');
+
+  // Score pill
+  const sp=document.getElementById('score-pill');
+  sp.textContent=m.prediction===-1?'Anomaly':'Nominal';
+  sp.className='chart-pill'+(m.prediction===-1?' alert':' active');
+
+  // Sensor chart
+  const sv=m.sensor_values||{};
+  ['s9','s14','s4','s3','s17'].forEach((s,i)=>push(sensChart,i,sv[s]??null));
+  sensChart.update('none');
+  document.getElementById('sens-pill').textContent='Live · '+cycles+' pts';
+
+  // Gauges
+  updateGauges(sv, m.prediction===-1);
+
+  // Trend bar
+  const td=trendChart.data.datasets[0].data;
+  td.push(m.prediction===-1?1:0);
+  if(td.length>20)td.shift();
+  trendChart.data.labels.push('');
+  if(trendChart.data.labels.length>20)trendChart.data.labels.shift();
+  trendChart.update('none');
+
+  // Health ring
+  const hp=Math.max(0,Math.min(100,100+m.anomaly_score*250));
+  updateRing(hp);
+
+  // Feed
+  addFeed(m);
+
+  // SHAP + drivers
+  if(m.prediction===-1&&m.contributions&&m.contributions.length){
+    renderShap(m.contributions,m.top_driver,'shap-list');
+    if(m.top_driver){topDrivers[m.top_driver]=(topDrivers[m.top_driver]||0)+1;renderDrivers();}
+  }
+
+  if(cycles%20===0)fetchStats();
+}
+
+function onEnd(m){
+  document.getElementById('s-cyc').textContent=m.total_cycles;
+  document.getElementById('s-anom').textContent=m.anomaly_count;
+  document.getElementById('s-rate').textContent=m.anomaly_rate+'%';
+  fetchStats();
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────
+function updateRing(pct){
+  const circ=264, offset=circ-(pct/100*circ);
+  const ring=document.getElementById('health-ring');
+  const val=document.getElementById('health-val');
+  ring.style.strokeDashoffset=offset;
+  val.textContent=Math.round(pct)+'%';
+  const c=pct>70?'var(--green)':pct>40?'var(--amber)':'var(--red)';
+  ring.style.stroke=c; val.style.color=c;
+}
+
+function updateGauges(sv, alert){
+  ['s9','s14','s4','s3','s17','s7'].forEach(s=>{
+    const v=sv[s]; if(v===undefined)return;
+    const r=sRanges[s];
+    if(v<r.min)r.min=v; if(v>r.max)r.max=v;
+    const pct=r.max>r.min?((v-r.min)/(r.max-r.min)*100).toFixed(0):50;
+    const el=document.getElementById('g-'+s); if(!el)return;
+    el.querySelector('.gauge-val').textContent=v.toFixed(2);
+    el.querySelector('.gauge-bar').style.width=pct+'%';
+    el.className='gauge'+(alert?' alert':'');
+  });
+}
+
+function addFeed(m){
+  const list=document.getElementById('feed-list');
+  const empty=list.querySelector('.empty'); if(empty)empty.remove();
+  feedCount++;
+  document.getElementById('feed-count').textContent=feedCount+' events';
+  const isA=m.prediction===-1;
+  const div=document.createElement('div'); div.className='feed-row';
+  div.innerHTML=`
+    <span class="pill ${isA?'pill-anom':'pill-norm'}">${isA?'ANOMALY':'NOMINAL'}</span>
+    <span style="color:var(--text2)">Cyc ${m.cycle}</span>
+    <span class="feed-score">${m.anomaly_score.toFixed(4)}</span>
+    <span class="feed-driver">${m.top_driver?'▲ '+m.top_driver:''}</span>
+    <span style="color:var(--text3);font-size:10px;">${new Date().toTimeString().slice(0,8)}</span>`;
+  list.insertBefore(div,list.firstChild);
+  while(list.children.length>40)list.removeChild(list.lastChild);
+}
+
+function renderShap(contribs, top, elId){
+  const max=Math.max(...contribs.map(c=>c.abs_impact));
+  document.getElementById(elId).innerHTML=contribs.map(c=>{
+    const pct=max>0?(c.abs_impact/max*100).toFixed(0):0;
+    const up=c.direction==='increases_anomaly';
+    const isTop=c.feature===top;
+    return `<div class="shap-row${isTop?' top':''}">
+      <span class="shap-name${isTop?' top':''}">${c.feature}</span>
+      <div class="shap-bar-wrap"><div class="shap-bar ${up?'up':'down'}" style="width:${pct}%"></div></div>
+      <span class="shap-val ${up?'up':'down'}">${up?'+':''}${c.shap_value.toFixed(4)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDrivers(){
+  const sorted=Object.entries(topDrivers).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(!sorted.length)return;
+  const max=sorted[0][1];
+  document.getElementById('drivers-list').innerHTML=sorted.map(([n,c])=>`
+    <div class="driver-row">
+      <span class="driver-name">${n}</span>
+      <div class="driver-bar-wrap"><div class="driver-bar" style="width:${(c/max*100).toFixed(0)}%"></div></div>
+      <span class="driver-count">${c}</span>
+    </div>`).join('');
+}
+
+function setLive(on){
+  document.getElementById('live-dot').className='badge-dot'+(on?' live':'');
+  document.getElementById('live-label').textContent=on?'Live':'Offline';
+}
+
+// ── Stats ──────────────────────────────────────────────────────────
+async function fetchStats(){
+  try{
+    const d=await(await fetch(`${API}/dashboard/stats`)).json();
+    document.getElementById('stat-total').textContent=d.total_predictions??'—';
+    document.getElementById('stat-anom').textContent=d.total_anomalies??'—';
+    document.getElementById('stat-rate').textContent=(d.anomaly_rate??'—')+'%';
+    document.getElementById('stat-lat').textContent=(d.avg_latency_ms??'—')+'ms';
+    if(d.total_predictions>0)updateRing(Math.max(0,100-d.anomaly_rate));
+  }catch(e){}
+}
+
+// ── What-If ────────────────────────────────────────────────────────
+function initWhatIf(){
+  const wrap=document.getElementById('wi-sliders');
+  if(wrap.children.length>0)return; // already built
+  sensorOrder.forEach(s=>{
+    const def=sensorDefaults[s];
+    const min=(def*0.5).toFixed(0), max=(def*1.5).toFixed(0);
+    wrap.innerHTML+=`
+      <div class="whatif-row">
+        <span class="whatif-name">${s}</span>
+        <input type="range" id="wi-${s}" min="${min}" max="${max}" value="${def}" step="${(def*0.01).toFixed(0)}"
+          oninput="document.getElementById('wiv-${s}').textContent=parseFloat(this.value).toFixed(1);runWhatIf()">
+        <span class="range-val" id="wiv-${s}">${def}</span>
+      </div>`;
+  });
+  // Populate with last reading if available
+  if(lastFeatures){
+    sensorOrder.forEach((s,i)=>{
+      const el=document.getElementById('wi-'+s);
+      if(el){el.value=lastFeatures[i];document.getElementById('wiv-'+s).textContent=parseFloat(lastFeatures[i]).toFixed(1);}
+    });
+  }
+  runWhatIf();
+}
+
+async function runWhatIf(){
+  const features=sensorOrder.map(s=>{
+    const el=document.getElementById('wi-'+s);
+    return el?parseFloat(el.value):sensorDefaults[s];
+  });
+  try{
+    const r=await fetch(`${API}/explain`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({features})});
+    if(!r.ok)return;
+    const d=await r.json();
+    const pred=document.getElementById('wi-pred');
+    pred.textContent=d.label==='anomaly'?'Anomaly':'Normal';
+    pred.style.color=d.label==='anomaly'?'var(--red)':'var(--green)';
+    document.getElementById('wi-score').textContent='Score: '+d.anomaly_score.toFixed(6);
+    renderShap(d.contributions,d.top_driver,'wi-shap');
+  }catch(e){}
+}
+
+// ── Drift ──────────────────────────────────────────────────────────
+async function runDrift(){
+  const features=lastFeatures||(sensorOrder.map(s=>sensorDefaults[s]));
+  try{
+    const r=await fetch(`${API}/drift`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({samples:[features]})});
+    if(!r.ok)return;
+    const d=await r.json();
+    document.getElementById('drift-summary').textContent=d.recommendation||'No recommendation.';
+    const list=document.getElementById('drift-list');
+    list.innerHTML=(d.feature_reports||[]).map(f=>{
+      const pct=Math.min(100,(f.ks_statistic*200).toFixed(0));
+      const cls=f.drift_detected?(f.severity==='high'?'bad':'warn'):'ok';
+      return `<div class="drift-row">
+        <span class="drift-name">${f.feature}</span>
+        <div class="drift-bar-wrap"><div class="drift-bar ${cls}" style="width:${pct}%"></div></div>
+        <span class="drift-status ${cls}">${f.drift_detected?f.severity.toUpperCase():'OK'}</span>
+      </div>`;
+    }).join('');
+  }catch(e){document.getElementById('drift-summary').textContent='Error: '+e.message;}
+}
+
+// ── Compare ────────────────────────────────────────────────────────
+function startCompare(){
+  if(wsB)wsB.close();
+  cmpA=[]; cmpB=[]; cmpAnomA=0; cmpAnomB=0;
+  cmpChart.data.datasets[0].data=[];
+  cmpChart.data.datasets[1].data=[];
+  cmpChart.data.labels=[];
+  cmpChart.update('none');
+  document.getElementById('cmp-anom-a').textContent='0';
+  document.getElementById('cmp-anom-b').textContent='0';
+
+  const cfgA={dataset:document.getElementById('cmp-ds-a').value,fault_mode:document.getElementById('cmp-fault-a').value,fault_start_pct:0.6,speed_multiplier:10,engine_id:null};
+  const cfgB={dataset:document.getElementById('cmp-ds-b').value,fault_mode:document.getElementById('cmp-fault-b').value,fault_start_pct:0.6,speed_multiplier:10,engine_id:null};
+
+  const wA=new WebSocket(WS);
+  wA.onopen=()=>wA.send(JSON.stringify(cfgA));
+  wA.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.type==='reading'){
+      if(m.prediction===-1)cmpAnomA++;
+      cmpA.push(m.anomaly_score);
+      syncCompareChart();
+      document.getElementById('cmp-anom-a').textContent=cmpAnomA;
+    }
+  };
+
+  const wB=new WebSocket(WS);
+  wB.onopen=()=>wB.send(JSON.stringify(cfgB));
+  wB.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.type==='reading'){
+      if(m.prediction===-1)cmpAnomB++;
+      cmpB.push(m.anomaly_score);
+      syncCompareChart();
+      document.getElementById('cmp-anom-b').textContent=cmpAnomB;
+    }
+  };
+
+  wsB=wB;
+}
+
+function syncCompareChart(){
+  const len=Math.min(cmpA.length,cmpB.length,MAX);
+  cmpChart.data.labels=Array(len).fill('');
+  cmpChart.data.datasets[0].data=cmpA.slice(-len);
+  cmpChart.data.datasets[1].data=cmpB.slice(-len);
+  cmpChart.update('none');
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+initCharts();
+fetchStats();
+setInterval(fetchStats,15000);
+</script>
+</body>
+</html>
